@@ -1,0 +1,1420 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>WiFi CSI/CFR · LIVE SENSING</title>
+  <style>
+    :root {
+      --page: #0d0f12;
+      --surface: #15191f;
+      --surface-2: #191e25;
+      --plot: #100f18;
+      --line: #2b323d;
+      --line-soft: #222831;
+      --text: #f3f5f7;
+      --muted: #9da7b3;
+      --dim: #697482;
+      --blue: #77a7ff;
+      --blue-strong: #4f8cff;
+      --cyan: #55c7d9;
+      --amber: #f0b35b;
+      --green: #67c897;
+      --violet: #b59cff;
+      --danger: #ef7c82;
+      --radius: 12px;
+      --sans: "Fira Sans", "IBM Plex Sans", "Noto Sans", "Segoe UI", Arial, sans-serif;
+      --mono: "Fira Code", "JetBrains Mono", "IBM Plex Mono", "Cascadia Code", monospace;
+    }
+
+    * { box-sizing: border-box; }
+    html { background: var(--page); }
+    body {
+      margin: 0;
+      min-width: 320px;
+      min-height: 100dvh;
+      color: var(--text);
+      background: var(--page);
+      font-family: var(--sans);
+      font-size: 15px;
+      line-height: 1.5;
+    }
+    button, input, select { font: inherit; }
+    button { touch-action: manipulation; }
+    button:focus-visible, input:focus-visible, select:focus-visible {
+      outline: 2px solid var(--blue);
+      outline-offset: 3px;
+    }
+    .skip-link {
+      position: fixed;
+      top: 12px;
+      left: 12px;
+      z-index: 20;
+      padding: 9px 12px;
+      color: #07111f;
+      background: var(--blue);
+      border-radius: 6px;
+      transform: translateY(-160%);
+    }
+    .skip-link:focus { transform: translateY(0); }
+
+    .shell {
+      width: min(1500px, calc(100% - 36px));
+      margin: 0 auto;
+      padding: 22px 0 40px;
+    }
+    .app-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      min-height: 76px;
+      margin-bottom: 16px;
+      padding: 0 4px 16px;
+      border-bottom: 1px solid var(--line);
+    }
+    .brand { min-width: 0; }
+    .brand h1 {
+      margin: 0;
+      font-size: clamp(24px, 3vw, 38px);
+      font-weight: 600;
+      line-height: 1.1;
+      letter-spacing: -.025em;
+    }
+    .brand h1 span { color: var(--blue); }
+    .brand p {
+      margin: 7px 0 0;
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: .025em;
+    }
+    .header-controls {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex: 0 0 auto;
+    }
+    .live-state {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 124px;
+      min-height: 42px;
+      gap: 9px;
+      padding: 0 13px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      color: var(--muted);
+      background: var(--surface);
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: .08em;
+    }
+    .state-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--green);
+    }
+    .is-paused .state-dot { background: var(--amber); }
+    .play-button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 160px;
+      min-width: 160px;
+      min-height: 42px;
+      gap: 8px;
+      padding: 0 15px;
+      border: 1px solid #6a99ee;
+      border-radius: 8px;
+      color: #fff;
+      background: var(--blue-strong);
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      transition: background-color 150ms ease, border-color 150ms ease;
+    }
+    .play-button:hover { background: #6198fa; border-color: #85aff7; }
+    .play-button:active { background: #3e79df; }
+    .play-button.is-capturing {
+      border-color: #d56f78;
+      background: #b64f5a;
+    }
+    .play-button.is-capturing:hover { border-color: #ef8e96; background: #c65b66; }
+    .play-button svg { width: 16px; height: 16px; }
+    .play-button svg[hidden] { display: none; }
+
+    .mode-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 12px;
+    }
+    .mode-controls {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+    .mode-tab {
+      display: grid;
+      grid-template-columns: 34px minmax(96px, 1fr);
+      align-items: center;
+      gap: 10px;
+      min-width: 176px;
+      min-height: 48px;
+      padding: 5px 11px 5px 7px;
+      border: 1px solid #3d5d84;
+      border-radius: 10px;
+      color: #dce9ff;
+      background: linear-gradient(180deg, #192943 0%, #162238 100%);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.035), 0 8px 24px rgba(0,0,0,.12);
+    }
+    .mode-mark {
+      display: grid;
+      place-items: center;
+      width: 34px;
+      height: 34px;
+      border: 1px solid #426b9d;
+      border-radius: 8px;
+      color: #8fc5ff;
+      background: linear-gradient(145deg, #18345a, #172b49);
+      box-shadow: inset 0 0 12px rgba(79,140,255,.08);
+    }
+    .mode-mark svg { width: 18px; height: 18px; }
+    .mode-copy { display: grid; gap: 2px; min-width: 0; }
+    .mode-copy small {
+      color: #8297b4;
+      font-family: var(--mono);
+      font-size: 8px;
+      font-weight: 600;
+      letter-spacing: .09em;
+      line-height: 1;
+      text-transform: uppercase;
+    }
+    .mode-copy strong {
+      font-family: var(--mono);
+      font-size: 12px;
+      font-weight: 650;
+      letter-spacing: .08em;
+    }
+    .mode-note {
+      color: var(--dim);
+      font-family: var(--mono);
+      font-size: 10px;
+      text-align: right;
+    }
+    .example-picker { position: relative; z-index: 30; }
+    .example-trigger {
+      display: grid;
+      grid-template-columns: 34px minmax(126px, 1fr) 18px;
+      align-items: center;
+      gap: 10px;
+      min-width: 236px;
+      min-height: 48px;
+      padding: 5px 11px 5px 7px;
+      border: 1px solid #344255;
+      border-radius: 10px;
+      color: var(--text);
+      background: linear-gradient(180deg, #1b222c 0%, #171c23 100%);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.025), 0 8px 24px rgba(0,0,0,.12);
+      cursor: pointer;
+      text-align: left;
+      transition: border-color 140ms ease, background-color 140ms ease, box-shadow 140ms ease;
+    }
+    .example-trigger:hover {
+      border-color: #56759e;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.035), 0 10px 28px rgba(0,0,0,.2);
+    }
+    .example-trigger[aria-expanded="true"] {
+      border-color: var(--blue-strong);
+      box-shadow: 0 0 0 3px rgba(79,140,255,.12), 0 12px 32px rgba(0,0,0,.28);
+    }
+    .example-mark {
+      display: grid;
+      place-items: center;
+      width: 34px;
+      height: 34px;
+      border: 1px solid #40587b;
+      border-radius: 8px;
+      color: #a9c7ff;
+      background: #192944;
+    }
+    .example-mark svg { width: 18px; height: 18px; }
+    .example-trigger-copy { display: grid; gap: 2px; min-width: 0; }
+    .example-trigger-copy small {
+      color: var(--dim);
+      font-family: var(--mono);
+      font-size: 8px;
+      font-weight: 600;
+      letter-spacing: .09em;
+      line-height: 1;
+      text-transform: uppercase;
+    }
+    .example-trigger-copy strong {
+      overflow: hidden;
+      color: var(--text);
+      font-size: 12px;
+      font-weight: 600;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .example-separator { margin: 0 6px; color: var(--dim); font-weight: 400; }
+    .example-chevron {
+      width: 16px;
+      height: 16px;
+      color: var(--muted);
+      transition: transform 150ms ease;
+    }
+    .example-trigger[aria-expanded="true"] .example-chevron { transform: rotate(180deg); }
+    .example-menu {
+      position: absolute;
+      top: calc(100% + 8px);
+      left: 0;
+      width: min(430px, calc(100vw - 40px));
+      padding: 8px;
+      border: 1px solid #344255;
+      border-radius: 12px;
+      background: #151a21;
+      box-shadow: 0 18px 52px rgba(0,0,0,.48), inset 0 1px 0 rgba(255,255,255,.025);
+    }
+    .example-menu[hidden] { display: none; }
+    .example-group + .example-group { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line-soft); }
+    .example-group-title {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 4px 6px 8px;
+    }
+    .example-group-title strong { color: var(--muted); font-size: 11px; font-weight: 600; }
+    .example-group-title span { color: var(--dim); font-family: var(--mono); font-size: 8px; text-transform: uppercase; }
+    .example-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+    .example-option {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 18px;
+      align-items: center;
+      gap: 8px;
+      min-height: 54px;
+      padding: 8px 10px;
+      border: 1px solid transparent;
+      border-radius: 8px;
+      color: var(--muted);
+      background: #191f27;
+      cursor: pointer;
+      text-align: left;
+      transition: color 120ms ease, background-color 120ms ease, border-color 120ms ease;
+    }
+    .example-option:hover, .example-option:focus-visible {
+      color: var(--text);
+      border-color: #3d4a5c;
+      background: #202732;
+    }
+    .example-option[aria-selected="true"] {
+      color: #dbe8ff;
+      border-color: #496f9f;
+      background: #192a43;
+    }
+    .example-option-copy { display: grid; min-width: 0; }
+    .example-option-copy strong { font-size: 12px; font-weight: 600; }
+    .example-check { width: 16px; height: 16px; color: var(--blue); opacity: 0; }
+    .example-option[aria-selected="true"] .example-check { opacity: 1; }
+
+    .primary-grid, .detail-grid {
+      transition: opacity 130ms ease, transform 130ms ease;
+    }
+    body.is-switching .primary-grid,
+    body.is-switching .detail-grid {
+      opacity: .48;
+      transform: translateY(2px);
+    }
+
+    .primary-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 310px;
+      gap: 14px;
+      align-items: stretch;
+    }
+    .card {
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface);
+    }
+    .card-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      min-height: 72px;
+      padding: 15px 17px;
+      border-bottom: 1px solid var(--line-soft);
+    }
+    .kicker {
+      margin: 0 0 3px;
+      color: var(--blue);
+      font-family: var(--mono);
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+    }
+    h2 {
+      margin: 0;
+      font-size: 17px;
+      font-weight: 600;
+      letter-spacing: -.01em;
+    }
+    .chart-meta {
+      color: var(--dim);
+      font-family: var(--mono);
+      font-size: 10px;
+      line-height: 1.65;
+      text-align: right;
+      white-space: nowrap;
+    }
+    .chart-meta strong { color: var(--muted); font-weight: 500; }
+
+    .spectrogram-body {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 54px;
+      gap: 8px;
+      min-height: 500px;
+      padding: 12px 14px 14px 10px;
+      background: #111419;
+    }
+    canvas { display: block; width: 100%; height: 100%; }
+    #spectrogram { min-height: 470px; }
+    .color-scale {
+      display: grid;
+      grid-template-columns: 13px 1fr;
+      gap: 8px;
+      min-height: 420px;
+      padding: 20px 0 34px;
+    }
+    .color-ramp {
+      border: 1px solid #3c4350;
+      background: linear-gradient(
+        to top,
+        rgb(48, 18, 59) 0%,
+        rgb(63, 77, 196) 18%,
+        rgb(35, 160, 214) 38%,
+        rgb(42, 231, 142) 57%,
+        rgb(190, 247, 64) 72%,
+        rgb(255, 158, 31) 87%,
+        rgb(144, 12, 0) 100%
+      );
+    }
+    .color-labels {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      color: var(--dim);
+      font-family: var(--mono);
+      font-size: 9px;
+    }
+    .color-labels span:first-child::after { content: " dB"; color: var(--muted); }
+
+    .telemetry {
+      display: flex;
+      flex-direction: column;
+      min-height: 100%;
+    }
+    .telemetry-head {
+      padding: 16px 17px;
+      border-bottom: 1px solid var(--line-soft);
+    }
+    .timeline-title-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .timeline-title {
+      margin: 0;
+      color: #edf4ff;
+      font-size: 16px;
+      font-weight: 600;
+      letter-spacing: .01em;
+    }
+    .time-value {
+      min-width: 78px;
+      padding: 4px 7px;
+      border: 1px solid transparent;
+      border-radius: 5px;
+      color: #9ec3ff;
+      background: transparent;
+      cursor: text;
+      font-family: var(--mono);
+      font-size: 13px;
+      font-variant-numeric: tabular-nums;
+      text-align: right;
+    }
+    .time-value:hover { border-color: var(--line); background: var(--surface-2); }
+    .time-input {
+      width: 78px;
+      padding: 4px 6px;
+      border: 1px solid var(--blue);
+      border-radius: 5px;
+      color: var(--text);
+      background: #0f141b;
+      font-family: var(--mono);
+      font-size: 12px;
+      text-align: right;
+    }
+    .timeline-control {
+      display: grid;
+      grid-template-columns: 34px minmax(0, 1fr);
+      align-items: center;
+      gap: 9px;
+      margin-top: 14px;
+      color: #b7c3d1;
+      font-family: var(--mono);
+      font-size: 10px;
+    }
+    .timeline-control input {
+      width: 100%;
+      accent-color: var(--blue);
+      cursor: pointer;
+    }
+    .timeline-range {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      margin: 3px 0 0 43px;
+      color: #8f9dad;
+      font-family: var(--mono);
+      font-size: 9px;
+    }
+    .metrics { padding: 8px 16px 0; }
+    .metric-combined {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      min-height: 55px;
+      border-bottom: 1px solid var(--line-soft);
+    }
+    .metric-label {
+      color: #b9c5d3;
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: .01em;
+    }
+    .metric-value {
+      color: #f5f8fc;
+      font-family: var(--mono);
+      font-size: 14px;
+      font-variant-numeric: tabular-nums;
+      font-weight: 600;
+    }
+    .metric-dot {
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      margin: 0 9px;
+      overflow: hidden;
+      border-radius: 50%;
+      color: transparent;
+      background: #6f9bd8;
+      box-shadow: 0 0 8px rgba(111,155,216,.28);
+      font-size: 0;
+      vertical-align: middle;
+    }
+    .metric-value.accent {
+      color: #bde9ff;
+      text-shadow: 0 0 14px rgba(85,199,217,.14);
+    }
+    .confidence-track {
+      height: 5px;
+      margin-top: 13px;
+      overflow: hidden;
+      border-radius: 3px;
+      background: #283342;
+    }
+    .confidence-fill {
+      width: 0;
+      height: 100%;
+      background: var(--blue);
+      transition: width 120ms linear;
+    }
+    .capture-status {
+      color: #bde9ff;
+      text-shadow: 0 0 14px rgba(85,199,217,.12);
+    }
+    .match-status.is-match { color: #8de0b3; }
+    .match-status.is-mismatch { color: #ff9ca3; }
+    .processing {
+      margin: auto 16px 16px;
+      padding: 13px 0 0;
+      border-top: 1px solid var(--line-soft);
+      color: #91a0b1;
+      font-family: var(--mono);
+      font-size: 9px;
+      line-height: 1.8;
+    }
+    .processing strong {
+      color: #cbd8e8;
+      font-weight: 600;
+      letter-spacing: .02em;
+    }
+
+    .detail-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 14px;
+    }
+    .chart-wrap {
+      height: 290px;
+      padding: 10px 12px 12px 8px;
+      background: #111419;
+    }
+    .wide { grid-column: 1 / -1; }
+    .wide .chart-wrap { height: 250px; }
+    .tone-control {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 10px;
+    }
+    .tone-control input {
+      width: min(150px, 25vw);
+      accent-color: var(--blue);
+      cursor: pointer;
+    }
+    .phase-note { color: var(--amber); }
+    .sr-summary {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+      white-space: nowrap;
+    }
+    .footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 13px 3px 0;
+      color: var(--dim);
+      font-family: var(--mono);
+      font-size: 9px;
+    }
+
+    @media (max-width: 1020px) {
+      .primary-grid { grid-template-columns: 1fr; }
+      .telemetry { min-height: 0; }
+      .processing { margin-top: 0; }
+    }
+    @media (max-width: 720px) {
+      .shell { width: min(100% - 20px, 1500px); padding-top: 12px; }
+      .app-header { align-items: flex-start; flex-direction: column; }
+      .header-controls { width: 100%; }
+      .play-button { flex: 1; }
+      .mode-row { align-items: flex-start; flex-direction: column; }
+      .mode-controls { width: 100%; flex-wrap: wrap; }
+      .example-picker { flex: 1; }
+      .example-trigger { width: 100%; }
+      .example-options { grid-template-columns: 1fr; }
+      .mode-note { text-align: left; }
+      .detail-grid { grid-template-columns: 1fr; }
+      .wide { grid-column: auto; }
+      .spectrogram-body { min-height: 390px; grid-template-columns: minmax(0, 1fr) 45px; }
+      #spectrogram { min-height: 365px; }
+      .chart-wrap { height: 270px; }
+      .footer { align-items: flex-start; flex-direction: column; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#content">Skip to dashboard</a>
+  <div class="shell">
+    <header class="app-header" id="app-header">
+      <div class="brand">
+        <h1>WiFi CSI/CFR <span>· LIVE SENSING</span></h1>
+        <p>CHANNEL RESPONSE / DOPPLER MOTION MONITOR</p>
+      </div>
+      <div class="header-controls">
+        <div class="live-state" aria-live="polite"><span class="state-dot"></span><span id="state-label">PAUSED</span></div>
+        <button class="play-button" id="play-button" type="button" aria-pressed="false" aria-label="Start live capture">
+          <svg id="pause-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" hidden><path d="M8 5v14M16 5v14"/></svg>
+          <svg id="play-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m8 5 11 7-11 7Z"/></svg>
+          <svg id="stop-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" hidden><rect x="6" y="6" width="12" height="12" rx="1.5"/></svg>
+          <span id="play-label">Start Capture</span>
+        </button>
+      </div>
+    </header>
+
+    <main id="content">
+      <div class="mode-row">
+        <div class="mode-controls">
+          <div class="mode-tab">
+            <span class="mode-mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 16.5 8.5 12l3 3L20 6.5"/><path d="M15 6.5h5v5"/></svg></span>
+            <span class="mode-copy"><small>Sensing mode</small><strong>MOTION</strong></span>
+          </div>
+          <div class="example-picker" id="example-picker">
+            <button class="example-trigger" id="example-trigger" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="example-menu">
+              <span class="example-mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M3 12h3l2-6 4 12 3-9 2 6h4"/></svg></span>
+              <span class="example-trigger-copy"><small>Data Source</small><strong><span id="dataset-name">Live Simulation</span><span class="example-separator">/</span><span id="activity-name">Pine Capture</span></strong></span>
+              <svg class="example-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m7 9 5 5 5-5"/></svg>
+            </button>
+            <div class="example-menu" id="example-menu" role="listbox" aria-label="Live and recorded data sources" hidden>
+              <div id="example-groups"></div>
+            </div>
+          </div>
+        </div>
+        <div class="mode-note" id="source-note">Pine live stream · STAND → WALK → RUN → FALL · phase unavailable</div>
+      </div>
+
+      <section class="primary-grid" aria-label="Live sensing overview">
+        <article class="card">
+          <header class="card-header">
+            <div>
+              <p class="kicker">CSI motion spectrum</p>
+              <h2>Doppler Frequency Spectrogram</h2>
+            </div>
+            <div class="chart-meta"><strong>shared power reference</strong><br>range −35…0 dB</div>
+          </header>
+          <div class="spectrogram-body">
+            <canvas id="spectrogram" role="img" aria-label="Pine CFR motion Doppler spectrogram revealed from left to right"></canvas>
+            <div class="color-scale" aria-label="Relative power color scale from minus 35 to zero decibels">
+              <div class="color-ramp"></div>
+              <div class="color-labels"><span>0</span><span>−5</span><span>−10</span><span>−15</span><span>−20</span><span>−25</span><span>−30</span><span>−35</span></div>
+            </div>
+            <p class="sr-summary" id="spectrogram-summary">Spectrogram loading.</p>
+          </div>
+        </article>
+
+        <aside class="card telemetry" aria-label="Sensing timeline and metrics">
+          <div class="telemetry-head">
+            <div class="timeline-title-row">
+              <h2 class="timeline-title">Timeline</h2>
+              <button class="time-value" id="time-display" type="button" title="Double-click to enter a time">0.00 s</button>
+              <input class="time-input" id="time-input" type="number" min="0" step="0.08" aria-label="Enter playback time in seconds" hidden>
+            </div>
+            <label class="timeline-control"><span>Time</span><input id="time-slider" type="range" min="0" max="0" value="0" step="1" aria-label="Select an available playback time"></label>
+            <div class="timeline-range"><span id="time-start">0.00 s</span><span id="time-available">available 0.00 s</span></div>
+          </div>
+          <div class="metrics">
+            <div class="metric-combined">
+              <span class="metric-label">Capture<span class="metric-dot">·</span>Buffer</span>
+              <span class="metric-value capture-status"><span id="capture-status">READY</span><span class="metric-dot">·</span><span id="buffer-value">0.0/2.0 s</span></span>
+            </div>
+            <div class="metric-combined">
+              <span class="metric-label">FPS<span class="metric-dot">·</span>Tones</span>
+              <span class="metric-value"><span id="fps">100</span><span class="metric-dot">·</span><span id="tone-count">53</span></span>
+            </div>
+            <div class="metric-combined">
+              <span class="metric-label">Bandwidth<span class="metric-dot">·</span>Chains</span>
+              <span class="metric-value"><span id="bandwidth">20 MHz</span><span class="metric-dot">·</span><span id="chain-count">4</span></span>
+            </div>
+            <div class="metric-combined">
+              <span class="metric-label">Motion<span class="metric-dot">·</span>Confidence</span>
+              <span class="metric-value accent"><span id="motion-label">WAITING</span><span class="metric-dot">·</span><span id="confidence-value">—</span></span>
+            </div>
+            <div class="metric-combined">
+              <span class="metric-label">Golden Label<span class="metric-dot">·</span>Match</span>
+              <span class="metric-value"><span id="golden-label">WAITING</span><span class="metric-dot">·</span><span class="match-status" id="match-status">—</span></span>
+            </div>
+            <div class="confidence-track" aria-hidden="true"><div class="confidence-fill" id="confidence-fill"></div></div>
+          </div>
+          <div class="processing">
+            <strong>STFT</strong> Hann 128 · hop 8 · NFFT 128<br>
+            <strong>Input</strong> 5-packet smooth · per-chain normalize<br>
+            <strong>Fusion</strong> mean linear power across chain/tone<br>
+            <strong>Model</strong> <span id="model-name">SharedChainPineLeNet · concat</span><br>
+            <strong>Phase</strong> unavailable in Pine magnitude capture
+          </div>
+        </aside>
+      </section>
+
+      <section class="detail-grid" aria-label="Signal details">
+        <article class="card">
+          <header class="card-header">
+            <div><p class="kicker">Current CFR frame</p><h2>Amplitude by Subcarrier</h2></div>
+            <div class="chart-meta phase-note">magnitude only</div>
+          </header>
+          <div class="chart-wrap"><canvas id="frame-chart" role="img" aria-label="Current frame amplitude across subcarriers"></canvas><p class="sr-summary" id="frame-summary"></p></div>
+        </article>
+
+        <article class="card">
+          <header class="card-header">
+            <div><p class="kicker">Single-tone history</p><h2>Amplitude over Time</h2></div>
+            <label class="tone-control">Tone <span id="tone-label">0</span><input id="tone-slider" type="range" min="0" max="52" value="26" aria-label="Select subcarrier"></label>
+          </header>
+          <div class="chart-wrap"><canvas id="tone-chart" role="img" aria-label="Selected subcarrier amplitude over time"></canvas><p class="sr-summary" id="tone-summary"></p></div>
+        </article>
+
+        <article class="card wide">
+          <header class="card-header">
+            <div><p class="kicker">Detection channel</p><h2>Motion Metric &amp; Threshold</h2></div>
+            <div class="chart-meta">threshold <strong id="threshold-label">0.180</strong></div>
+          </header>
+          <div class="chart-wrap"><canvas id="motion-chart" role="img" aria-label="Motion metric with threshold"></canvas><p class="sr-summary" id="motion-summary"></p></div>
+        </article>
+      </section>
+
+      <footer class="footer"><span>SPACE: start / stop active source · STFT streams from left to right</span><span>Live simulation + built-in examples · embedded data · offline HTML</span></footer>
+    </main>
+  </div>
+
+  <script id="dashboard-data" type="application/json">__DASHBOARD_DATA__</script>
+  <script>
+    (() => {
+      "use strict";
+      const DATA = JSON.parse(document.getElementById("dashboard-data").textContent);
+      let active = DATA.scenes[DATA.defaultScene];
+      const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+      const state = {
+        column: 0,
+        liveColumn: 0,
+        selectedTone: Math.floor(active.toneCount / 2),
+        playing: false,
+        capturing: false,
+        inference: { pending: false, result: null, error: null, lastRequestedFrame: 0 },
+        lastTick: performance.now(),
+        accumulator: 0,
+      };
+      let inferenceGeneration = 0;
+      let inferenceAbortController = null;
+      const $ = (id) => document.getElementById(id);
+      const el = {
+        header: $("app-header"), stateLabel: $("state-label"), button: $("play-button"),
+        playLabel: $("play-label"), playIcon: $("play-icon"), pauseIcon: $("pause-icon"), stopIcon: $("stop-icon"),
+        examplePicker: $("example-picker"), exampleTrigger: $("example-trigger"),
+        exampleMenu: $("example-menu"), exampleGroups: $("example-groups"),
+        datasetName: $("dataset-name"), activityName: $("activity-name"), sourceNote: $("source-note"),
+        fps: $("fps"), toneCount: $("tone-count"),
+        bandwidth: $("bandwidth"), chainCount: $("chain-count"),
+        captureStatus: $("capture-status"), bufferValue: $("buffer-value"),
+        modelName: $("model-name"),
+        motionLabel: $("motion-label"), confidenceValue: $("confidence-value"), confidenceFill: $("confidence-fill"),
+        goldenLabel: $("golden-label"), matchStatus: $("match-status"),
+        timeDisplay: $("time-display"), timeInput: $("time-input"), timeSlider: $("time-slider"),
+        timeStart: $("time-start"), timeAvailable: $("time-available"),
+        toneSlider: $("tone-slider"), toneLabel: $("tone-label"),
+        thresholdLabel: $("threshold-label"), spectrumSummary: $("spectrogram-summary"),
+        frameSummary: $("frame-summary"), toneSummary: $("tone-summary"), motionSummary: $("motion-summary"),
+      };
+      const canvas = { spectrum: $("spectrogram"), frame: $("frame-chart"), tone: $("tone-chart"), motion: $("motion-chart") };
+
+      function sizeCanvas(node) {
+        const ratio = Math.min(devicePixelRatio || 1, 2);
+        const rect = node.getBoundingClientRect();
+        node.width = Math.max(1, Math.round(rect.width * ratio));
+        node.height = Math.max(1, Math.round(rect.height * ratio));
+        const context = node.getContext("2d");
+        context.setTransform(ratio, 0, 0, ratio, 0, 0);
+        return { context, width: rect.width, height: rect.height };
+      }
+
+      function css(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+      function clamp(value, low, high) { return Math.max(low, Math.min(high, value)); }
+      function turbo(value) {
+        const x = clamp(value, 0, 1);
+        const k = [1, x, x*x, x*x*x, x*x*x*x, x*x*x*x*x];
+        const dot = (c) => clamp(Math.round(255 * c.reduce((sum, value, index) => sum + value * k[index], 0)), 0, 255);
+        return [
+          dot([.13572138, 4.61539260, -42.66032258, 132.13108234, -152.94239396, 59.28637943]),
+          dot([.09140261, 2.19418839, 4.84296658, -14.18503333, 4.27729857, 2.82956604]),
+          dot([.10667330, 12.64194608, -60.58204836, 110.36276771, -89.90310912, 27.34824973]),
+        ];
+      }
+
+      function drawGrid(context, plot, color = "rgba(157,167,179,.14)") {
+        context.save();
+        context.strokeStyle = color;
+        context.lineWidth = 1;
+        for (let i = 0; i <= 5; i += 1) {
+          const y = plot.top + plot.height * i / 5;
+          context.beginPath(); context.moveTo(plot.left, y); context.lineTo(plot.right, y); context.stroke();
+        }
+        for (let i = 0; i <= 6; i += 1) {
+          const x = plot.left + plot.width * i / 6;
+          context.beginPath(); context.moveTo(x, plot.top); context.lineTo(x, plot.bottom); context.stroke();
+        }
+        context.restore();
+      }
+
+      function plotFrame(context, width, height, labels, showGrid = true) {
+        const margin = { left: 54, right: 13, top: 13, bottom: 37 };
+        const plot = { left: margin.left, top: margin.top, right: width - margin.right, bottom: height - margin.bottom };
+        plot.width = plot.right - plot.left; plot.height = plot.bottom - plot.top;
+        context.clearRect(0, 0, width, height);
+        context.fillStyle = css("--plot"); context.fillRect(0, 0, width, height);
+        if (showGrid) drawGrid(context, plot);
+        context.fillStyle = css("--dim"); context.font = `10px ${css("--mono")}`; context.textAlign = "center";
+        context.fillText(labels.x, (plot.left + plot.right) / 2, height - 7);
+        context.save(); context.translate(11, (plot.top + plot.bottom) / 2); context.rotate(-Math.PI / 2); context.fillText(labels.y, 0, 0); context.restore();
+        return plot;
+      }
+
+      function drawSpectrogram() {
+        const { context, width, height } = sizeCanvas(canvas.spectrum);
+        const plot = plotFrame(context, width, height, { x: "Time (s)", y: "Frequency (Hz)" }, false);
+        const windowColumns = active.displayStftWindow;
+        const startColumn = Math.max(0, state.column - windowColumns + 1);
+        const visibleColumns = state.column - startColumn + 1;
+        const windowIsFull = visibleColumns === windowColumns;
+        const bins = active.frequencies.length;
+        const pixels = document.createElement("canvas");
+        pixels.width = visibleColumns; pixels.height = bins;
+        const pixelContext = pixels.getContext("2d");
+        const image = pixelContext.createImageData(visibleColumns, bins);
+        for (let x = 0; x < visibleColumns; x += 1) {
+          const sourceColumn = startColumn + x;
+          for (let bin = 0; bin < bins; bin += 1) {
+            const y = bins - 1 - bin;
+            const offset = (y * visibleColumns + x) * 4;
+            if (sourceColumn < active.firstDataColumn) {
+              image.data[offset + 3] = 0;
+              continue;
+            }
+            const db = active.stftDb[bin][sourceColumn];
+            const [r, g, b] = turbo((db - active.stft.dbMin) / (active.stft.dbMax - active.stft.dbMin));
+            image.data[offset] = r; image.data[offset + 1] = g; image.data[offset + 2] = b; image.data[offset + 3] = 255;
+          }
+        }
+        pixelContext.putImageData(image, 0, 0);
+        context.imageSmoothingEnabled = false;
+        const visibleWidth = windowIsFull ? plot.width : plot.width * visibleColumns / windowColumns;
+        context.drawImage(pixels, plot.left, plot.top, visibleWidth, plot.height);
+        drawGrid(context, plot, "rgba(225,232,240,.16)");
+        if (!windowIsFull && state.column >= active.firstDataColumn) {
+          const cursorX = plot.left + visibleWidth;
+          context.strokeStyle = "rgba(255,255,255,.72)"; context.lineWidth = 1;
+          context.beginPath(); context.moveTo(cursorX, plot.top); context.lineTo(cursorX, plot.bottom); context.stroke();
+        }
+        context.fillStyle = css("--dim"); context.font = `10px ${css("--mono")}`;
+        context.textAlign = "right";
+        const maximumFrequency = active.frequencies[active.frequencies.length - 1];
+        for (let i = 0; i <= 5; i += 1) {
+          const value = maximumFrequency * (1 - i / 5);
+          context.fillText(value.toFixed(maximumFrequency > 100 ? 0 : 1), plot.left - 7, plot.top + plot.height * i / 5 + 4);
+        }
+        context.textAlign = "center";
+        const first = active.stftTimes[startColumn];
+        const last = active.stftTimes[state.column];
+        if (visibleWidth < 120 || visibleColumns === 1) {
+          context.textAlign = "right";
+          context.fillText(last.toFixed(2), plot.left + visibleWidth, plot.bottom + 17);
+        } else {
+          const tickCount = windowIsFull ? 5 : Math.min(5, Math.max(2, Math.floor(visibleWidth / 110)));
+          for (let i = 0; i <= tickCount; i += 1) {
+            const time = first + (last - first) * i / tickCount;
+            context.fillText(time.toFixed(1), plot.left + visibleWidth * i / tickCount, plot.bottom + 17);
+          }
+        }
+        el.spectrumSummary.textContent = state.column < active.firstDataColumn
+          ? `Waiting for the first complete STFT window at ${active.stftTimes[active.firstDataColumn].toFixed(2)} seconds.`
+          : `Rolling STFT window from ${first.toFixed(2)} to ${active.stftTimes[state.column].toFixed(2)} seconds, frequency zero to ${maximumFrequency.toFixed(1)} hertz.`;
+      }
+
+      function bounds(values, padRatio = .08) {
+        let minimum = Math.min(...values), maximum = Math.max(...values);
+        const span = maximum - minimum || 1;
+        return { minimum: minimum - span * padRatio, maximum: maximum + span * padRatio };
+      }
+
+      function drawLine(node, values, options) {
+        const { context, width, height } = sizeCanvas(node);
+        const plot = plotFrame(context, width, height, { x: options.x, y: options.y });
+        const range = options.range || bounds(values);
+        const mapX = (index) => plot.left + (values.length <= 1 ? 0 : index / (values.length - 1)) * plot.width;
+        const mapY = (value) => plot.bottom - (value - range.minimum) / (range.maximum - range.minimum || 1) * plot.height;
+        if (options.threshold !== undefined) {
+          const y = mapY(options.threshold);
+          context.save(); context.setLineDash([6, 5]); context.strokeStyle = css("--amber");
+          context.beginPath(); context.moveTo(plot.left, y); context.lineTo(plot.right, y); context.stroke(); context.restore();
+        }
+        context.beginPath();
+        values.forEach((value, index) => index ? context.lineTo(mapX(index), mapY(value)) : context.moveTo(mapX(index), mapY(value)));
+        context.strokeStyle = options.color; context.lineWidth = 1.8; context.lineJoin = "round"; context.stroke();
+        context.fillStyle = css("--dim"); context.font = `9px ${css("--mono")}`; context.textAlign = "right";
+        for (let i = 0; i <= 3; i += 1) {
+          const value = range.maximum - (range.maximum - range.minimum) * i / 3;
+          context.fillText(value.toFixed(options.decimals), plot.left - 7, plot.top + plot.height * i / 3 + 3);
+        }
+      }
+
+      function drawWaitingChart(node, labels) {
+        const { context, width, height } = sizeCanvas(node);
+        const plot = plotFrame(context, width, height, labels);
+        context.fillStyle = css("--muted");
+        context.font = `11px ${css("--mono")}`;
+        context.textAlign = "center";
+        context.fillText("Waiting for capture", (plot.left + plot.right) / 2, (plot.top + plot.bottom) / 2);
+      }
+
+      function currentFrame() { return active.stftCenterFrames[state.column]; }
+
+      function drawDetails() {
+        if (active.isLive && state.liveColumn === 0) {
+          drawWaitingChart(canvas.frame, { x: "Subcarrier index", y: "Amplitude" });
+          drawWaitingChart(canvas.tone, { x: "Time (s)", y: "Amplitude" });
+          drawWaitingChart(canvas.motion, { x: "Time (s)", y: "Motion score" });
+          el.frameSummary.textContent = "Waiting for the first captured CFR frame.";
+          el.toneSummary.textContent = "Waiting for amplitude history.";
+          el.motionSummary.textContent = "Waiting for motion measurements.";
+          return;
+        }
+        const frameIndex = currentFrame();
+        const frame = active.amplitude[frameIndex];
+        drawLine(canvas.frame, frame, { x: "Subcarrier index", y: "Amplitude", color: css("--cyan"), decimals: 3 });
+        const frameStart = Math.max(0, frameIndex - active.displayFrameWindow + 1);
+        const history = active.amplitude.slice(frameStart, frameIndex + 1).map((row) => row[state.selectedTone]);
+        drawLine(canvas.tone, history, {
+          x: `${(frameStart / active.sampleRate).toFixed(1)}–${(frameIndex / active.sampleRate).toFixed(1)} s rolling`,
+          y: "Amplitude", color: css("--blue"), decimals: 3
+        });
+        const metricStart = Math.max(0, state.column - active.displayStftWindow + 1);
+        const metric = active.motionMetric.slice(metricStart, state.column + 1);
+        drawLine(canvas.motion, metric, {
+          x: `${active.stftTimes[metricStart].toFixed(1)}–${active.stftTimes[state.column].toFixed(1)} s rolling`,
+          y: "Motion score", color: css("--violet"), decimals: 3,
+          threshold: DATA.threshold, range: { minimum: 0, maximum: Math.max(.45, ...metric) }
+        });
+        el.frameSummary.textContent = `Frame ${frameIndex} amplitude across ${active.toneCount} active tones.`;
+        el.toneSummary.textContent = `Tone ${DATA.toneIndices[state.selectedTone]} rolling history from ${(frameStart / active.sampleRate).toFixed(2)} to ${(frameIndex / active.sampleRate).toFixed(2)} seconds.`;
+        el.motionSummary.textContent = `Motion score ${active.motionMetric[state.column].toFixed(3)}; threshold ${DATA.threshold.toFixed(3)}.`;
+      }
+
+      function confidence(score) { return clamp(72 + (score / Math.max(DATA.threshold, .001)) * 12, 72, 98.8); }
+
+      function resetInference() {
+        inferenceGeneration += 1;
+        inferenceAbortController?.abort();
+        inferenceAbortController = null;
+        state.inference = { pending: false, result: null, error: null, lastRequestedFrame: 0 };
+      }
+
+      function capturedFramesAt(column) {
+        return Math.min(
+          active.frameCount,
+          Math.floor(active.stftTimes[column] * active.sampleRate + 1e-6)
+        );
+      }
+
+      function goldenLabelAt(frameCount) {
+        if (!active.goldenSegments || frameCount <= 0) return null;
+        const frame = frameCount - 1;
+        return active.goldenSegments.find(
+          (segment) => frame >= segment.startFrame && frame < segment.endFrame
+        )?.label || null;
+      }
+
+      function goldenWindowAt(endFrame) {
+        if (!active.goldenSegments || endFrame < active.inferenceWindowFrames) {
+          return { label: null, scorable: false };
+        }
+        const startFrame = endFrame - active.inferenceWindowFrames;
+        const matching = active.goldenSegments.filter(
+          (segment) => startFrame < segment.endFrame && endFrame > segment.startFrame
+        );
+        const labels = new Set(matching.map((segment) => segment.label));
+        if (matching.length && labels.size === 1) {
+          return { label: matching[0].label, scorable: true };
+        }
+        return { label: "TRANSITION", scorable: false };
+      }
+
+      async function requestInference(endFrame) {
+        const generation = inferenceGeneration;
+        const controller = new AbortController();
+        inferenceAbortController = controller;
+        state.inference.pending = true;
+        state.inference.error = null;
+        state.inference.lastRequestedFrame = endFrame;
+        render();
+        try {
+          const response = await fetch(active.inferenceEndpoint, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ capture: active.inferenceCapture, endFrame }),
+            signal: controller.signal,
+          });
+          const result = await response.json();
+          if (!response.ok) throw new Error(result.error || `HTTP ${response.status}`);
+          if (generation === inferenceGeneration && active.isLive) {
+            state.inference.result = result;
+          }
+        } catch (error) {
+          if (generation === inferenceGeneration && error?.name !== "AbortError") {
+            state.inference.error = error instanceof Error ? error.message : String(error);
+          }
+        } finally {
+          if (generation !== inferenceGeneration) return;
+          inferenceAbortController = null;
+          state.inference.pending = false;
+          render();
+          if (active.isLive && !state.inference.error) queueMicrotask(maybeRequestInference);
+        }
+      }
+
+      function maybeRequestInference() {
+        if (!active.isLive || state.inference.pending) return;
+        const availableFrames = capturedFramesAt(state.liveColumn);
+        if (availableFrames < active.inferenceWindowFrames) return;
+        const latestEndFrame = active.inferenceWindowFrames + Math.floor(
+          (availableFrames - active.inferenceWindowFrames) / active.inferenceHopFrames
+        ) * active.inferenceHopFrames;
+        if (latestEndFrame <= state.inference.lastRequestedFrame) return;
+        requestInference(latestEndFrame);
+      }
+
+      function playbackAtEnd() {
+        const last = active.stftTimes.length - 1;
+        return state.column === last && state.liveColumn === last;
+      }
+
+      function updatePlaybackState() {
+        const label = active.isLive
+          ? state.capturing ? "CAPTURING" : playbackAtEnd() ? "CAPTURED" : state.liveColumn ? "STOPPED" : "READY"
+          : state.playing ? "PLAYING" : playbackAtEnd() ? "COMPLETE" : "PAUSED";
+        el.stateLabel.textContent = label;
+        el.header.classList.toggle("is-paused", active.isLive ? !state.capturing : !state.playing);
+      }
+
+      function updateTimeline() {
+        const current = active.stftTimes[state.column];
+        const available = active.stftTimes[state.liveColumn];
+        el.timeDisplay.textContent = `${current.toFixed(2)} s`;
+        el.timeSlider.max = String(state.liveColumn);
+        el.timeSlider.value = String(state.column);
+        el.timeInput.max = available.toFixed(2);
+        el.timeInput.min = active.stftTimes[0].toFixed(2);
+        el.timeStart.textContent = `${active.stftTimes[0].toFixed(2)} s`;
+        el.timeAvailable.textContent = `available ${available.toFixed(2)} s`;
+      }
+
+      function updateMetrics() {
+        const frame = currentFrame();
+        const score = active.motionMetric[state.column];
+        const availableSeconds = active.stftTimes[state.liveColumn];
+        const currentSeconds = active.stftTimes[state.column];
+        const inferenceWindow = active.inferenceWindowSeconds;
+        const bufferedSeconds = Math.min(availableSeconds, inferenceWindow);
+        const currentFrameCount = capturedFramesAt(state.column);
+        const modelPrediction = state.inference.result &&
+          state.inference.result.endFrame <= currentFrameCount
+          ? state.inference.result
+          : null;
+        const goldenWindow = active.isLive && modelPrediction
+          ? goldenWindowAt(modelPrediction.endFrame)
+          : { label: active.isLive ? goldenLabelAt(currentFrameCount) : active.prediction, scorable: !active.isLive };
+        const goldenLabel = goldenWindow.label;
+        const detectionReady = active.isLive
+          ? modelPrediction !== null
+          : state.column >= active.firstDataColumn;
+        const certainty = active.isLive && modelPrediction
+          ? modelPrediction.confidence
+          : confidence(score);
+        el.fps.textContent = active.sampleRate.toFixed(0);
+        el.toneCount.textContent = active.toneCount;
+        el.bandwidth.textContent = active.bandwidth;
+        el.chainCount.textContent = active.chainCount;
+        el.captureStatus.textContent = active.isLive
+          ? state.capturing ? "STREAMING" : playbackAtEnd() ? "COMPLETE" : state.liveColumn ? "STOPPED" : "READY"
+          : "LOADED";
+        el.bufferValue.textContent = active.isLive
+          ? `${bufferedSeconds.toFixed(1)}/${inferenceWindow.toFixed(1)} s`
+          : `${inferenceWindow.toFixed(1)}/${inferenceWindow.toFixed(1)} s`;
+        el.motionLabel.textContent = detectionReady
+          ? active.isLive ? modelPrediction.label : active.prediction
+          : active.isLive && state.inference.error ? "INFERENCE OFFLINE"
+          : active.isLive && state.inference.pending ? "PREDICTING"
+          : active.isLive && state.liveColumn ? "COLLECTING" : "WAITING";
+        el.confidenceValue.textContent = detectionReady ? certainty.toFixed(1) + "%" : "—";
+        el.confidenceFill.style.width = detectionReady ? certainty + "%" : "0%";
+        const predictionMatches = detectionReady && goldenWindow.scorable && goldenLabel &&
+          (active.isLive ? modelPrediction.label : active.prediction) === goldenLabel;
+        el.goldenLabel.textContent = goldenLabel || "WAITING";
+        el.matchStatus.textContent = detectionReady
+          ? goldenWindow.scorable ? predictionMatches ? "MATCH" : "MISMATCH" : "N/A"
+          : "—";
+        el.matchStatus.classList.toggle("is-match", Boolean(predictionMatches));
+        el.matchStatus.classList.toggle("is-mismatch", detectionReady && goldenWindow.scorable && !predictionMatches);
+        el.modelName.textContent = active.isLive
+          ? `${active.modelName} · ${active.modelInputShape.join("×")} · concat${modelPrediction ? ` · ${modelPrediction.inferenceMs.toFixed(1)} ms` : ""}`
+          : "Recorded example label";
+        el.toneLabel.textContent = DATA.toneIndices[state.selectedTone];
+        el.thresholdLabel.textContent = DATA.threshold.toFixed(3);
+        updateTimeline();
+        updatePlaybackState();
+      }
+
+      function render() { updateMetrics(); drawSpectrogram(); drawDetails(); }
+
+      function setPlaying(value) {
+        if (active.isLive) return;
+        if (value && playbackAtEnd()) {
+          state.column = 0;
+          state.liveColumn = 0;
+          resetInference();
+        }
+        state.playing = value;
+        const replay = !value && playbackAtEnd();
+        el.playLabel.textContent = value ? "Pause" : replay ? "Replay" : "Play";
+        el.pauseIcon.toggleAttribute("hidden", !value);
+        el.playIcon.toggleAttribute("hidden", value);
+        el.stopIcon.toggleAttribute("hidden", true);
+        el.button.classList.remove("is-capturing");
+        el.button.setAttribute("aria-pressed", String(value));
+        el.button.setAttribute("aria-label", value ? "Pause playback" : replay ? "Replay from beginning" : "Resume playback");
+        state.lastTick = performance.now();
+        updatePlaybackState();
+        render();
+      }
+
+      function setCapture(value) {
+        if (!active.isLive) return;
+        if (value && playbackAtEnd()) {
+          state.column = 0;
+          state.liveColumn = 0;
+          state.accumulator = 0;
+          resetInference();
+        }
+        state.capturing = value;
+        state.playing = false;
+        const restart = !value && playbackAtEnd();
+        el.playLabel.textContent = value ? "Stop Capture" : restart ? "Restart Capture" : "Start Capture";
+        el.stopIcon.toggleAttribute("hidden", !value);
+        el.playIcon.toggleAttribute("hidden", value);
+        el.pauseIcon.toggleAttribute("hidden", true);
+        el.button.classList.toggle("is-capturing", value);
+        el.button.setAttribute("aria-pressed", String(value));
+        el.button.setAttribute("aria-label", value ? "Stop live capture" : restart ? "Restart live capture" : "Start live capture");
+        state.lastTick = performance.now();
+        updatePlaybackState();
+        render();
+      }
+
+      function updateDatasetDescription() {
+        el.datasetName.textContent = active.datasetLabel;
+        el.activityName.textContent = active.activity;
+        el.sourceNote.textContent = `${active.source} · phase unavailable`;
+        el.exampleGroups.querySelectorAll(".example-option").forEach((option) => {
+          const selected = option.dataset.scene === active.key;
+          option.setAttribute("aria-selected", String(selected));
+        });
+      }
+
+      let exampleMenuOpen = false;
+      function exampleButtons() {
+        return Array.from(el.exampleGroups.querySelectorAll(".example-option"));
+      }
+
+      function setExampleMenu(open, focusSelected = false) {
+        exampleMenuOpen = open;
+        el.exampleMenu.hidden = !open;
+        el.exampleTrigger.setAttribute("aria-expanded", String(open));
+        if (open && focusSelected) {
+          requestAnimationFrame(() => {
+            const selected = exampleButtons().find((button) => button.dataset.scene === active.key);
+            (selected || exampleButtons()[0])?.focus();
+          });
+        }
+      }
+
+      let sceneSwitchTimer = null;
+      function switchScene(key) {
+        const next = DATA.scenes[key];
+        if (!next || next === active) return;
+        clearTimeout(sceneSwitchTimer);
+        document.body.classList.add("is-switching");
+        const commit = () => {
+          active = next;
+          state.column = 0;
+          state.liveColumn = 0;
+          state.selectedTone = Math.floor(active.toneCount / 2);
+          state.accumulator = 0;
+          state.playing = false;
+          state.capturing = false;
+          resetInference();
+          state.lastTick = performance.now();
+          el.timeInput.hidden = true;
+          el.timeDisplay.hidden = false;
+          el.toneSlider.max = active.toneCount - 1;
+          el.toneSlider.value = state.selectedTone;
+          updateDatasetDescription();
+          if (active.isLive) setCapture(false);
+          else setPlaying(false);
+          requestAnimationFrame(() => requestAnimationFrame(() => {
+            document.body.classList.remove("is-switching");
+          }));
+        };
+        if (reducedMotion) commit();
+        else sceneSwitchTimer = setTimeout(commit, 90);
+      }
+
+      function seekToColumn(column) {
+        state.column = clamp(Math.round(column), 0, state.liveColumn);
+        state.accumulator = 0;
+        setPlaying(false);
+      }
+
+      function nearestAvailableColumn(seconds) {
+        const target = clamp(seconds, active.stftTimes[0], active.stftTimes[state.liveColumn]);
+        let nearest = 0;
+        let distance = Infinity;
+        for (let index = 0; index <= state.liveColumn; index += 1) {
+          const currentDistance = Math.abs(active.stftTimes[index] - target);
+          if (currentDistance < distance) { distance = currentDistance; nearest = index; }
+        }
+        return nearest;
+      }
+
+      function beginTimeEdit() {
+        setPlaying(false);
+        el.timeInput.value = active.stftTimes[state.column].toFixed(2);
+        el.timeDisplay.hidden = true;
+        el.timeInput.hidden = false;
+        el.timeInput.focus();
+        el.timeInput.select();
+      }
+
+      function finishTimeEdit(commit) {
+        if (commit) {
+          const value = Number(el.timeInput.value);
+          if (Number.isFinite(value)) seekToColumn(nearestAvailableColumn(value));
+        }
+        el.timeInput.hidden = true;
+        el.timeDisplay.hidden = false;
+        el.timeDisplay.focus();
+        render();
+      }
+
+      function tick(now) {
+        const elapsed = Math.min(.15, Math.max(0, (now - state.lastTick) / 1000));
+        state.lastTick = now;
+        if (active.isLive ? state.capturing : state.playing) {
+          state.accumulator += elapsed * (active.sampleRate / active.stft.hop);
+          const advance = Math.floor(state.accumulator);
+          if (advance > 0) {
+            state.accumulator -= advance;
+            const last = active.stftTimes.length - 1;
+            if (active.isLive) {
+              const wasAtLiveEdge = state.column === state.liveColumn;
+              state.liveColumn = Math.min(last, state.liveColumn + advance);
+              if (wasAtLiveEdge) state.column = state.liveColumn;
+              if (state.liveColumn === last) setCapture(false);
+            } else if (state.column < state.liveColumn) {
+              state.column = Math.min(state.liveColumn, state.column + advance);
+            } else if (state.liveColumn < last) {
+              state.liveColumn = Math.min(last, state.liveColumn + advance);
+              state.column = state.liveColumn;
+              if (state.liveColumn === last) setPlaying(false);
+            } else {
+              setPlaying(false);
+            }
+            maybeRequestInference();
+            render();
+          }
+        }
+        requestAnimationFrame(tick);
+      }
+
+      el.button.addEventListener("click", () => active.isLive ? setCapture(!state.capturing) : setPlaying(!state.playing));
+      el.exampleTrigger.addEventListener("click", () => setExampleMenu(!exampleMenuOpen));
+      el.exampleTrigger.addEventListener("keydown", (event) => {
+        if (event.key === "ArrowDown") {
+          event.preventDefault();
+          setExampleMenu(true, true);
+        }
+        if (event.key === "Escape") setExampleMenu(false);
+      });
+      el.exampleGroups.addEventListener("click", (event) => {
+        const option = event.target.closest(".example-option");
+        if (!option) return;
+        setExampleMenu(false);
+        el.exampleTrigger.focus();
+        switchScene(option.dataset.scene);
+      });
+      el.exampleMenu.addEventListener("keydown", (event) => {
+        const buttons = exampleButtons();
+        const current = buttons.indexOf(document.activeElement);
+        if (event.key === "Escape") {
+          event.preventDefault();
+          setExampleMenu(false);
+          el.exampleTrigger.focus();
+          return;
+        }
+        if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) return;
+        event.preventDefault();
+        let next = current;
+        if (event.key === "Home") next = 0;
+        else if (event.key === "End") next = buttons.length - 1;
+        else if (event.key === "ArrowDown") next = (current + 1 + buttons.length) % buttons.length;
+        else next = (current - 1 + buttons.length) % buttons.length;
+        buttons[next]?.focus();
+      });
+      document.addEventListener("pointerdown", (event) => {
+        if (exampleMenuOpen && !el.examplePicker.contains(event.target)) setExampleMenu(false);
+      });
+      el.timeSlider.addEventListener("input", (event) => seekToColumn(Number(event.target.value)));
+      el.timeDisplay.addEventListener("dblclick", beginTimeEdit);
+      el.timeDisplay.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") { event.preventDefault(); beginTimeEdit(); }
+      });
+      el.timeInput.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") finishTimeEdit(true);
+        if (event.key === "Escape") finishTimeEdit(false);
+      });
+      el.timeInput.addEventListener("blur", () => { if (!el.timeInput.hidden) finishTimeEdit(true); });
+      el.toneSlider.addEventListener("input", (event) => { state.selectedTone = Number(event.target.value); render(); });
+      addEventListener("keydown", (event) => {
+        if (event.code === "Space" && !event.repeat && event.target === document.body) {
+          event.preventDefault();
+          active.isLive ? setCapture(!state.capturing) : setPlaying(!state.playing);
+        }
+      });
+      addEventListener("resize", render);
+      document.addEventListener("visibilitychange", () => {
+        if (!document.hidden) return;
+        if (active.isLive && state.capturing) setCapture(false);
+        else if (state.playing) setPlaying(false);
+      });
+      const datasetGroups = new Map();
+      Object.values(DATA.scenes)
+        .sort((left, right) => Number(right.isLive) - Number(left.isLive))
+        .forEach((scene) => {
+        let group = datasetGroups.get(scene.datasetKey);
+        if (!group) {
+          group = document.createElement("section");
+          group.className = "example-group";
+          group.innerHTML = `<div class="example-group-title"><strong>${scene.datasetLabel}</strong><span>${scene.isLive ? "Capture source" : "Recorded examples"}</span></div><div class="example-options"></div>`;
+          datasetGroups.set(scene.datasetKey, group);
+          el.exampleGroups.append(group);
+        }
+        const option = document.createElement("button");
+        option.type = "button";
+        option.className = "example-option";
+        option.dataset.scene = scene.key;
+        option.setAttribute("role", "option");
+        option.setAttribute("aria-selected", "false");
+        option.innerHTML = `<span class="example-option-copy"><strong>${scene.activity}</strong></span><svg class="example-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>`;
+        group.querySelector(".example-options").append(option);
+        });
+      updateDatasetDescription();
+      el.toneSlider.max = active.toneCount - 1;
+      el.toneSlider.value = state.selectedTone;
+      render();
+      if (active.isLive) setCapture(false);
+      else setPlaying(false);
+      requestAnimationFrame(tick);
+    })();
+  </script>
+</body>
+</html>

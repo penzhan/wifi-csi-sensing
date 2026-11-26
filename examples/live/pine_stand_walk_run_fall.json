@@ -1,0 +1,57 @@
+{
+  "periodMs": 2.0,
+  "sampleRate": 500.0,
+  "totalFrames": 3987,
+  "chainCount": 4,
+  "toneCount": 128,
+  "segments": [
+    {
+      "startFrame": 0,
+      "endFrame": 695,
+      "startSeconds": 0.0,
+      "endSeconds": 1.39,
+      "label": "STAND",
+      "source": "cfr_40.txt"
+    },
+    {
+      "startFrame": 695,
+      "endFrame": 1407,
+      "startSeconds": 1.39,
+      "endSeconds": 2.814,
+      "label": "WALK",
+      "source": "cfr_20.txt"
+    },
+    {
+      "startFrame": 1407,
+      "endFrame": 2030,
+      "startSeconds": 2.814,
+      "endSeconds": 4.06,
+      "label": "WALK",
+      "source": "cfr_34.txt"
+    },
+    {
+      "startFrame": 2030,
+      "endFrame": 2673,
+      "startSeconds": 4.06,
+      "endSeconds": 5.346,
+      "label": "RUN",
+      "source": "cfr_29.txt"
+    },
+    {
+      "startFrame": 2673,
+      "endFrame": 3319,
+      "startSeconds": 5.346,
+      "endSeconds": 6.638,
+      "label": "RUN",
+      "source": "cfr_37.txt"
+    },
+    {
+      "startFrame": 3319,
+      "endFrame": 3987,
+      "startSeconds": 6.638,
+      "endSeconds": 7.974,
+      "label": "FALL",
+      "source": "cfr_41.txt"
+    }
+  ]
+}

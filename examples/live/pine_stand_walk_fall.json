@@ -1,0 +1,33 @@
+{
+  "periodMs": 2.0,
+  "sampleRate": 500.0,
+  "totalFrames": 1986,
+  "chainCount": 4,
+  "toneCount": 128,
+  "segments": [
+    {
+      "startFrame": 0,
+      "endFrame": 695,
+      "startSeconds": 0.0,
+      "endSeconds": 1.39,
+      "label": "STAND",
+      "source": "cfr_40.txt"
+    },
+    {
+      "startFrame": 695,
+      "endFrame": 1318,
+      "startSeconds": 1.39,
+      "endSeconds": 2.636,
+      "label": "WALK",
+      "source": "cfr_34.txt"
+    },
+    {
+      "startFrame": 1318,
+      "endFrame": 1986,
+      "startSeconds": 2.636,
+      "endSeconds": 3.972,
+      "label": "FALL",
+      "source": "cfr_41.txt"
+    }
+  ]
+}
