@@ -1,15 +1,19 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
-TOOLS_DIR="$ROOT_DIR/csi_demo/tools"
-PYTHON="$ROOT_DIR/.venv/bin/python"
+CSI_DEMO_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+TOOLS_DIR="$CSI_DEMO_ROOT/tools"
+if [[ -x "$CSI_DEMO_ROOT/.venv/bin/python" ]]; then
+  PYTHON="$CSI_DEMO_ROOT/.venv/bin/python"
+else
+  PYTHON="$CSI_DEMO_ROOT/../.venv/bin/python"
+fi
 INFERENCE_PORT=8765
 DASHBOARD_PORT=8000
 
 "$PYTHON" "$TOOLS_DIR/serve_pine_inference.py" \
-  --checkpoint "$ROOT_DIR/csi_demo/models/pine_shared_lenet_concat.pt" \
-  --data-root "$ROOT_DIR/csi_demo/examples" \
+  --checkpoint "$CSI_DEMO_ROOT/models/pine_shared_lenet_concat.pt" \
+  --data-root "$CSI_DEMO_ROOT/examples" \
   --host 127.0.0.1 \
   --port "$INFERENCE_PORT" &
 INFERENCE_PID=$!
@@ -34,6 +38,6 @@ echo "Dashboard (local): http://127.0.0.1:$DASHBOARD_PORT/dashboard.html"
 echo "Dashboard (LAN):   http://<host-ip>:$DASHBOARD_PORT/dashboard.html"
 echo "Inference: local PyTorch CPU · http://127.0.0.1:$INFERENCE_PORT/health"
 "$PYTHON" "$TOOLS_DIR/serve_dashboard.py" \
-  --root "$ROOT_DIR/csi_demo/out" \
+  --root "$CSI_DEMO_ROOT/out" \
   --host 0.0.0.0 \
   --port "$DASHBOARD_PORT"
